@@ -1,22 +1,26 @@
-import { Route, Routes } from "react-router";
+import { Route, Routes } from "react-router-dom";
 import "./App.css";
 import Login from "./Auth/Login";
 import Registration from "./Auth/Registration";
+import PrivateRoute from "./PrivateRoute/PrivateRoute";
+import Home from "./Component/Dashboard/Home";
 
 function App() {
   return (
-    <>
-      <Routes>
-        <Route index element={<Login />} />
-        <Route path="/register" element={<Registration />} />
-        {/* <Route path="about" element={<About />} /> */}
+    <Routes>
+      <Route path="/" element={<Login />} />
+      <Route path="/register" element={<Registration />} />
 
-        {/* <Route element={<AuthLayout />}>
-          <Route path="login" element={<Login />} />
-          <Route path="register" element={<Register />} />
-        </Route> */}
-      </Routes>
-    </>
+      {/* Protected Route */}
+      <Route
+        path="/dashboard"
+        element={
+          <PrivateRoute>
+            <Home />
+          </PrivateRoute>
+        }
+      />
+    </Routes>
   );
 }
 
