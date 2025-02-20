@@ -1,0 +1,61 @@
+@import url("https://fonts.googleapis.com/css2?family=Jost:ital,wght@0,100..900;1,100..900&family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&family=Sora:wght@100..800&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: "Poppins", serif;
+}
+
+#root {
+  margin-bottom: 0px;
+}
+
+/* =====================================================================
+                  Erro Page start
+ ====================================================================*/
+.erro_page_div {
+  min-height: 90vh;
+  padding: 3rem 0rem;
+}
+
+.erro_text_div h5 {
+  font-size: 1.5rem;
+  margin-top: -4rem;
+  padding-bottom: 2rem;
+  font-weight: 400;
+  line-height: 2.5rem;
+}
+
+.custombtn {
+  background: linear-gradient(
+    100deg,
+    rgb(1, 28, 82) -19.5%,
+    rgba(0, 206, 233, 0.295) 100%
+  );
+  padding: 0.5rem 1.4rem;
+  border-radius: 0.4rem;
+  color: var(--text-color);
+  font-size: 1.3rem;
+  text-transform: capitalize;
+  font-weight: 600;
+}
+
+.custombtn:hover {
+  background: linear-gradient(
+    100deg,
+    rgba(1, 28, 82, 0.849) -19.5%,
+    rgba(0, 206, 233, 0.678) 100%
+  );
+  color: var(--bg-color);
+  transition: background 0.4s ease, color 0.4s ease;
+}
+
+.active {
+  font-weight: bold;
+  border-bottom: 2px solid #3b82f6;
+}
