@@ -4,8 +4,8 @@ import { useNavigate } from "react-router-dom";
 import { AppContext } from "../Context/ContextProvider";
 
 const axiosSequre = axios.create({
-  // baseURL: "http://localhost:5001",
-  baseURL: "https://server-side-seven-beta.vercel.app",
+  baseURL: "http://localhost:5001",
+  // baseURL: "https://server-side-seven-beta.vercel.app",
   headers: {
     "Content-Type": "application/json",
     Authorization: `Bearer ${localStorage.getItem("token")}`,
@@ -37,7 +37,7 @@ const useAxiosSequre = () => {
         const statusCode = error.response?.status;
         if (statusCode === 401 || statusCode === 403) {
           await logoutUser();
-          navigate("/login", { replace: true });
+          navigate("/", { replace: true });
         }
         return Promise.reject(error);
       }

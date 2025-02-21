@@ -17,14 +17,13 @@ const ContextProvider = ({ children }) => {
   // axios public import
   const axiosPublic = useAxiospublic();
   // api url
-  // const apiUrl = "http://localhost:5001";
-  const apiUrl = "https://server-side-seven-beta.vercel.app";
+  const apiUrl = "http://localhost:5001";
+  // const apiUrl = "https://server-side-seven-beta.vercel.app";
 
   // user State
   const [user, setUser] = useState(
     JSON.parse(localStorage.getItem("user")) || null
   );
-  console.log(user);
 
   const [isLoading, setIsLoading] = useState(true);
 
