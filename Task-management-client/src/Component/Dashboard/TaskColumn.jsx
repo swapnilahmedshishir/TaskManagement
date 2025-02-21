@@ -1,32 +1,65 @@
 import { useDrop } from "react-dnd";
 import TaskCard from "./TaskCard";
 
-const TaskColumn = ({ title, tasks, column, moveTask, onTaskClick }) => {
+const TaskColumn = ({
+  title,
+  tasks,
+  column,
+  moveTask,
+  onTaskClick,
+  moveTaskWithinColumn,
+}) => {
   const [{ isOver }, drop] = useDrop({
     accept: "TASK",
-    drop: (item) => moveTask(item.id, item.column, column),
-    collect: (monitor) => ({ isOver: !!monitor.isOver() }),
+    hover: (draggedItem) => {
+      if (draggedItem.column !== column) {
+        moveTask(draggedItem.id, draggedItem.column, column);
+        draggedItem.column = column;
+      }
+    },
   });
+
+  // Define title colors dynamically
+  const titleColors = {
+    "To-Do": "text-blue-600 dark:text-blue-400",
+    InProgress: "text-yellow-600 dark:text-yellow-400",
+    Done: "text-green-600 dark:text-green-400",
+  };
 
   return (
     <div
       ref={drop}
-      className={`p-4 bg-gray-200 dark:bg-gray-700 rounded-lg shadow ${
-        isOver ? "ring-2 ring-blue-500" : ""
-      }`}
+      className={`flex flex-col w-full max-w-md p-4 rounded-xl bg-gray-100 dark:bg-gray-800 shadow-lg transition-all 
+        ${isOver ? "ring-2 ring-blue-500 dark:ring-blue-400" : ""}
+      `}
     >
-      <h3 className="text-xl font-semibold mb-4 text-gray-800 dark:text-white">
+      {/* Column Title */}
+      <h3
+        className={`text-xl font-semibold mb-4 text-center uppercase tracking-wide 
+          ${titleColors[title] || "text-gray-800 dark:text-white"}
+        `}
+      >
         {title}
       </h3>
-      <div className="space-y-3">
-        {tasks?.map((task) => (
-          <TaskCard
-            key={task._id}
-            task={task}
-            column={column}
-            onTaskClick={onTaskClick}
-          />
-        ))}
+
+      {/* Tasks List */}
+      <div className="space-y-3 flex-1 overflow-y-auto">
+        {tasks?.length > 0 ? (
+          tasks.map((task, index) => (
+            <TaskCard
+              key={task._id}
+              task={task}
+              index={index}
+              column={column}
+              onTaskClick={onTaskClick}
+              moveTaskWithinColumn={moveTaskWithinColumn}
+            />
+          ))
+        ) : (
+          <p className="text-center text-sm text-gray-500 dark:text-gray-400">
+            No tasks here yet.
+          </p>
+        )}
       </div>
     </div>
   );

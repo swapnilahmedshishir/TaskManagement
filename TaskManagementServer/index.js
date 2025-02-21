@@ -46,10 +46,11 @@ const taskSchema = new mongoose.Schema({
   timestamp: { type: Date, default: Date.now },
   category: {
     type: String,
-    enum: ["To-Do", "InProgress", "Done"],
+    enum: ["todo", "InProgress", "done"],
     required: true,
   },
   userId: { type: String, required: true },
+  order: { type: Number, required: true },
 });
 const Task = mongoose.model("Task", taskSchema);
 
@@ -105,8 +106,6 @@ app.get("/", (req, res) => {
 });
 
 app.post("/addtasks", async (req, res) => {
-  console.log("Received Task Data:", req.body);
-
   try {
     const { title, description, category, userId } = req.body;
 
@@ -115,12 +114,19 @@ app.post("/addtasks", async (req, res) => {
         .status(400)
         .json({ error: "Title, category, and userId are required" });
     }
+    console.log(req.body);
 
-    const task = new Task(req.body);
+    // Find the last order number for the user's tasks
+    const lastTask = await Task.findOne({ userId }).sort({ order: -1 });
+    const task = new Task({
+      ...req.body,
+      order: lastTask ? lastTask.order + 1 : 1,
+    });
+
+    // const task = new Task(req.body);
+
     await task.save();
-
-    io.emit("taskUpdated"); // Notify clients
-
+    io.emit("taskUpdated");
     res.status(201).json(task);
   } catch (error) {
     console.error("Error saving task:", error);
@@ -132,7 +138,8 @@ app.get("/tasksget", async (req, res) => {
   const { userId } = req.query;
 
   try {
-    const tasks = await Task.find({ userId });
+    // const tasks = await Task.find({ userId });
+    const tasks = await Task.find({ userId }).sort({ order: 1 });
     res.json(tasks);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -141,12 +148,22 @@ app.get("/tasksget", async (req, res) => {
 
 app.put("/tasks/:id", async (req, res) => {
   try {
-    const task = await Task.findByIdAndUpdate(req.params.id, req.body, {
+    const updateData = { ...req.body };
+    if (updateData.order === undefined) {
+      delete updateData.order;
+    }
+    const task = await Task.findByIdAndUpdate(req.params.id, updateData, {
       new: true,
     });
+
+    if (!task) {
+      return res.status(404).json({ error: "Task not found" });
+    }
+
     io.emit("taskUpdated");
     res.json(task);
   } catch (error) {
+    console.error("Error updating task:", error);
     res.status(400).json({ error: error.message });
   }
 });

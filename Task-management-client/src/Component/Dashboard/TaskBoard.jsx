@@ -1,5 +1,6 @@
 import { useState, useEffect, useContext } from "react";
 import { FaBars, FaTimes, FaPlus } from "react-icons/fa";
+import { Plus } from "lucide-react";
 import Sidebar from "./Sidebar";
 import TaskColumn from "./TaskColumn";
 import { DndProvider } from "react-dnd";
@@ -12,7 +13,8 @@ import EditTaskModal from "../Modal/EditTaskModal ";
 
 const TaskBoard = () => {
   const { user, logoutUser, apiUrl } = useContext(AppContext);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  // const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [tasks, setTasks] = useState({ todo: [], inProgress: [], done: [] });
   const [selectedTask, setSelectedTask] = useState(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -46,25 +48,25 @@ const TaskBoard = () => {
 
       const formattedTasks = { todo: [], inProgress: [], done: [] };
 
-      // res.data.forEach((task) => {
-      //   const categoryMap = {
-      //     todo: "todo",
-      //     inProgress: "inProgress",
-      //     done: "done",
-      //   };
-      //   const mappedCategory = categoryMap[task.category];
-      //   if (mappedCategory) {
-      //     formattedTasks[mappedCategory].push(task);
-      //   } else {
-      //     console.warn("Unknown category:", task.category);
-      //   }
-      // });
-
       res.data.forEach((task) => {
-        if (["todo", "inProgress", "done"].includes(task.category)) {
-          formattedTasks[task.category].push(task);
+        const categoryMap = {
+          todo: "todo",
+          inProgress: "inProgress",
+          done: "done",
+        };
+        const mappedCategory = categoryMap[task.category];
+        if (mappedCategory) {
+          formattedTasks[mappedCategory].push(task);
+        } else {
+          console.warn("Unknown category:", task.category);
         }
       });
+
+      // res.data.forEach((task) => {
+      //   if (["todo", "inProgress", "done"].includes(task.category)) {
+      //     formattedTasks[task.category].push(task);
+      //   }
+      // });
       setTasks(formattedTasks);
     } catch (error) {
       console.error("Error fetching tasks:", error);
@@ -78,7 +80,6 @@ const TaskBoard = () => {
       ...newTask,
       userId: user?.uid,
     };
-
     const res = await axios.post(`${apiUrl}/addtasks`, task);
     setTasks((prev) => ({
       ...prev,
@@ -86,6 +87,7 @@ const TaskBoard = () => {
     }));
     setIsDialogOpen(false);
     setNewTask({ title: "", description: "", category: "todo" });
+    toast.success("Task add successfully!");
   };
 
   const handleTaskClick = (task) => {
@@ -117,19 +119,33 @@ const TaskBoard = () => {
   const handleEditClick = () => {
     setIsEditModalOpen(true);
   };
-  // Close Edit Modal
-  const handleEditSave = async () => {
+  //  Edit Modal
+
+  const handleEditSave = async (taskId, updatedTitle, updatedDescription) => {
     try {
-      const updatedTask = {
-        title: selectedTask.title,
-        description: selectedTask.description,
-      };
-      await axios.put(`${apiUrl}/tasks/${selectedTask._id}`, updatedTask);
+      const updatedTask = {};
+
+      // Only add fields that were changed
+      if (updatedTitle !== selectedTask.title) {
+        updatedTask.title = updatedTitle;
+      }
+      if (updatedDescription !== selectedTask.description) {
+        updatedTask.description = updatedDescription;
+      }
+
+      // If nothing changed, do not send the request
+      if (Object.keys(updatedTask).length === 0) {
+        toast.info("No changes made.");
+        setIsEditModalOpen(false);
+        return;
+      }
+
+      await axios.put(`${apiUrl}/tasks/${taskId}`, updatedTask);
 
       setTasks((prev) => ({
         ...prev,
         [selectedTask.category]: prev[selectedTask.category].map((t) =>
-          t._id === selectedTask._id ? { ...t, ...updatedTask } : t
+          t._id === taskId ? { ...t, ...updatedTask } : t
         ),
       }));
 
@@ -142,42 +158,105 @@ const TaskBoard = () => {
   };
 
   const moveTask = async (taskId, fromColumn, toColumn) => {
-    const taskToMove = tasks[fromColumn].find((task) => task._id === taskId);
-    if (!taskToMove) return;
+    const taskToMove = tasks[fromColumn]?.find((task) => task._id === taskId);
 
-    await axios.put(`${apiUrl}/tasks/${taskId}`, { category: toColumn });
+    if (!taskToMove) {
+      console.error("Error: Task not found in fromColumn", {
+        taskId,
+        fromColumn,
+      });
+      return;
+    }
 
-    setTasks((prev) => ({
-      ...prev,
-      [fromColumn]: prev[fromColumn].filter((task) => task._id !== taskId),
-      [toColumn]: [...prev[toColumn], { ...taskToMove, category: toColumn }],
-    }));
+    try {
+      await axios.put(`${apiUrl}/tasks/${taskId}`, { category: toColumn });
+
+      setTasks((prev) => {
+        const updatedTasks = { ...prev };
+        updatedTasks[fromColumn] = updatedTasks[fromColumn].filter(
+          (task) => task._id !== taskId
+        );
+        updatedTasks[toColumn] = [
+          ...updatedTasks[toColumn],
+          { ...taskToMove, category: toColumn },
+        ];
+        toast.success("task move successfully!");
+        return updatedTasks;
+      });
+    } catch (error) {
+      console.error(
+        "Error moving task:",
+        error.response?.data || error.message
+      );
+    }
+  };
+
+  const moveTaskWithinColumn = async (column, fromIndex, toIndex) => {
+    let movedTask;
+
+    setTasks((prev) => {
+      const updatedColumn = [...prev[column]];
+      movedTask = updatedColumn[fromIndex];
+
+      updatedColumn.splice(fromIndex, 1);
+      updatedColumn.splice(toIndex, 0, movedTask);
+
+      // Update order values
+      updatedColumn.forEach((task, index) => {
+        task.order = index + 1;
+      });
+
+      return { ...prev, [column]: updatedColumn };
+    });
+
+    if (!movedTask) return;
+
+    try {
+      await axios.put(`${apiUrl}/tasks/${tasks[column][fromIndex]._id}`, {
+        order: tasks[column][fromIndex].order,
+      });
+    } catch (error) {
+      console.error("Error updating task order:", error);
+    }
   };
 
   return (
     <DndProvider backend={HTML5Backend}>
       <div className="flex h-screen bg-gray-100 dark:bg-gray-900">
-        {isSidebarOpen && <Sidebar onClose={() => setIsSidebarOpen(false)} />}
+        {/* Sidebar */}
+        {isSidebarOpen && (
+          <Sidebar
+            isOpen={isSidebarOpen}
+            onClose={() => setIsSidebarOpen(false)}
+          />
+        )}
+        {/* Main Content */}
         <div className="flex flex-col flex-1 p-6">
           <div className="flex justify-between items-center mb-4">
-            <button
-              onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-              className="text-gray-600 dark:text-white"
-            >
-              {isSidebarOpen ? <FaTimes size={24} /> : <FaBars size={24} />}
-            </button>
-            <div className="flex justify-between items-center">
+            {/* Top Bar */}
+            <div className="flex justify-between items-center mb-4">
+              <button
+                onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+                className="text-gray-600 dark:text-white text-2xl"
+              >
+                <FaBars />
+              </button>
+              <h1 className="text-xl font-semibold dark:text-white pl-4">
+                Welcome to Task Manager
+              </h1>
+            </div>
+            <div className="flex justify-between items-center ">
               <button
                 onClick={() => setIsDialogOpen(true)}
-                className="bg-blue-600 hover:bg-blue-700 mr-6 text-white px-4 py-2 rounded-lg flex items-center"
+                className="bg-[#031741] hover:bg-[#031748ec] mr-6 text-white px-5 py-2.5 rounded-lg flex items-center shadow-lg transition-all duration-300"
               >
-                <FaPlus className="mr-2" /> Add Task
+                <Plus className="mr-2" size={20} /> Add Task
               </button>
               <button
                 onClick={handleLogout}
                 className="bg-gradient-to-r from-blue-400 to-green-500 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center"
               >
-                logout
+                Logout
               </button>
             </div>
           </div>
@@ -191,6 +270,7 @@ const TaskBoard = () => {
                 column={column}
                 moveTask={moveTask}
                 onTaskClick={handleTaskClick}
+                moveTaskWithinColumn={moveTaskWithinColumn}
               />
             ))}
           </div>
@@ -250,19 +330,37 @@ const TaskBoard = () => {
         )}
         {/* Show Dialog Box When Clicking a Task */}
         {selectedTask && (
-          <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50">
-            <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-lg">
-              <h2 className="text-lg font-semibold">Task Options</h2>
-              <p className="mb-4">{selectedTask.title}</p>
-              <div className="flex gap-4">
+          <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 backdrop-blur-sm px-4">
+            <div className="bg-white dark:bg-gray-900 w-full max-w-sm md:max-w-md lg:max-w-lg p-6 rounded-lg shadow-xl relative">
+              {/* Close Button */}
+              <button
+                onClick={() => setSelectedTask(null)}
+                className="absolute top-4 right-4 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white transition"
+              >
+                <FaTimes size={20} />
+              </button>
+
+              {/* Dialog Title */}
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
+                Task Options
+              </h2>
+
+              {/* Task Details */}
+              <p className="text-gray-700 dark:text-gray-300 mb-6">
+                {selectedTask.title}
+              </p>
+
+              {/* Action Buttons */}
+              <div className="flex justify-between">
                 <button
-                  className="bg-blue-500 text-white px-4 py-2 rounded"
+                  className="px-4 py-2 rounded-lg bg-gradient-to-r from-blue-500 to-green-500 text-white hover:opacity-90 transition"
+                  // onClick={onEdit}
                   onClick={handleEditClick}
                 >
                   Edit
                 </button>
                 <button
-                  className="bg-red-500 text-white px-4 py-2 rounded"
+                  className="px-4 py-2 rounded-lg  bg-[#031741] text-white hover:bg-[#031748ec] transition"
                   onClick={handleDeleteClick}
                 >
                   Delete
@@ -277,76 +375,17 @@ const TaskBoard = () => {
           <EditTaskModal
             task={selectedTask}
             onClose={() => setIsEditModalOpen(false)}
+            onSave={handleEditSave}
           />
         )}
-        {/* {selectedTask && (
-          <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50">
-            <div className="bg-white p-6 rounded-lg w-1/3">
-              <h2 className="text-lg font-bold mb-3">Edit Task</h2>
-              <input
-                type="text"
-                className="w-full p-2 border rounded mb-2"
-                value={selectedTask.title}
-                onChange={(e) =>
-                  setSelectedTask({ ...selectedTask, title: e.target.value })
-                }
-              />
-              <textarea
-                className="w-full p-2 border rounded mb-2"
-                value={selectedTask.description}
-                onChange={(e) =>
-                  setSelectedTask({
-                    ...selectedTask,
-                    description: e.target.value,
-                  })
-                }
-              />
-              <div className="flex justify-end">
-                <button
-                  onClick={() => setSelectedTask(null)}
-                  className="px-4 py-2 bg-gray-300 rounded mr-2"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleEditSave}
-                  className="px-4 py-2 bg-blue-600 text-white rounded"
-                >
-                  Save
-                </button>
-              </div>
-            </div>
-          </div>
-        )} */}
 
         {/* Delete Confirmation Modal */}
         {isDeleteModalOpen && (
           <ConfirmDeleteModal
             onClose={() => setIsDeleteModalOpen(false)}
-            // onConfirm={confirmDelete}
+            onConfirm={handleDeleteConfirm}
           />
         )}
-        {/* {isDeleteModalOpen && (
-          <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50">
-            <div className="bg-white p-6 rounded-lg">
-              <p className="mb-4">Are you sure you want to delete this task?</p>
-              <div className="flex justify-end">
-                <button
-                  onClick={() => setIsDeleteModalOpen(false)}
-                  className="px-4 py-2 bg-gray-300 rounded mr-2"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleDeleteConfirm}
-                  className="px-4 py-2 bg-red-600 text-white rounded"
-                >
-                  Confirm
-                </button>
-              </div>
-            </div>
-          </div>
-        )} */}
       </div>
     </DndProvider>
   );

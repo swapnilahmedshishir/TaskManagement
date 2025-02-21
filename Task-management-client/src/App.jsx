@@ -3,16 +3,16 @@ import "./App.css";
 import Login from "./Auth/Login";
 import Registration from "./Auth/Registration";
 import PrivateRoute from "./PrivateRoute/PrivateRoute";
-import Home from "./Component/Dashboard/Home";
 import TaskBoard from "./Component/Dashboard/TaskBoard";
+import Projects from "./Component/Dashboard/Projects";
+import Team from "./Component/Dashboard/Team";
+import Home from "./Component/Dashboard/Home";
 
 function App() {
   return (
     <Routes>
       <Route path="/" element={<Login />} />
       <Route path="/register" element={<Registration />} />
-      {/* <Route path="/dashboard" element={<TaskBoard />} /> */}
-
       {/* Protected Route */}
       <Route
         path="/dashboard"
@@ -22,6 +22,8 @@ function App() {
           </PrivateRoute>
         }
       />
+      <Route path="projects" element={<Projects />} />
+      <Route path="team" element={<Team />} />
     </Routes>
   );
 }
